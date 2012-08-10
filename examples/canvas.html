@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=7, IE=9" />
+    <title>
+      Raster Layer
+    </title>
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.0/js/dojo/dijit/themes/claro/claro.css">
+    <style>
+      html,body {
+        width:98%;
+        height:98%;
+        margin: 0 10px;
+        padding-top:10px;
+      }
+
+      #mapCanvas {
+        border:solid 1px #888;
+        padding:0;
+      }
+
+      #status {
+        background-color:#000;
+        color:#FFF;
+        border:solid 1px #FFF;
+        -moz-border-radius:5px;
+        -webkit-border-radius:5px;
+        border-radius:5px;
+        padding:3px;
+      }
+
+      .shadow {
+       -moz-border-radius:6px;
+       -webkit-border-radius:6px;
+        border-radius:6px;
+       -moz-box-shadow:0 6px 3px -3px #888;
+       -webkit-box-shadow:0 6px 3px -3px #888;
+        box-shadow:0 6px 3px -3px #888;
+        background-color:#FFF;
+        padding:8px;
+      }
+      #footer{
+        height:80px;
+        padding:10px;
+      }
+    </style>
+    <script type="text/javascript">
+      var dojoConfig = {
+        parseOnLoad: true
+      };
+    </script>
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.0compact">
+    </script>
+    <script type="text/javascript" src="RasterLayer.js">
+    </script>
+    <script>
+      dojo.require("esri.map");
+      dojo.require("modules.RasterLayer");
+      dojo.require("dojo.number");
+      dojo.require("dijit.layout.BorderContainer");
+      dojo.require("dijit.layout.ContentPane");
+      dojo.require("dijit.form.HorizontalSlider");
+
+      dojo.addOnLoad(initialize);
+
+      var map, rasterLayer;
+      var canvasSupport;
+
+      function initialize() {
+      
+        //does the browser support canvas? 
+        canvasSupport = supports_canvas();
+        
+        //hook up elevation slider events
+        var slider = dijit.byId('elevSlider');
+        dojo.connect(slider,'onMouseUp',setElevation);
+        dojo.connect(slider,'onChange',setElevation);
+
+        var initialExtent = new esri.geometry.Extent({"xmin":7242411,"ymin":2110087,"xmax":12589334,"ymax":5451303,"spatialReference":{"wkid":102100}});
+      
+        map = new esri.Map("mapCanvas", {
+          extent: initialExtent
+        });
+
+        dojo.connect(map, "onUpdateStart", function() {
+          esri.show(dojo.byId("status"));
+        });
+        dojo.connect(map, "onUpdateEnd", function() {
+          esri.hide(dojo.byId("status"));
+        });
+
+        dojo.connect(map, "onLoad", mapLoaded);
+        // Base map
+        var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer");
+        map.addLayer(basemap);
+
+      }
+
+      function mapLoaded() {
+        // Add raster layer
+        if(canvasSupport){
+          rasterLayer = new modules.RasterLayer(null, {
+            opacity: 0.55
+          });
+
+          map.addLayer(rasterLayer);
+          setElevation();
+          getRasterData();
+          
+          dojo.connect(map, "onExtentChange", getRasterData);
+        }
+        else{
+          //hide the slider and dsplay error message
+          esri.hide(dojo.byId('elevSlider'));
+          esri.hide(dojo.byId('elevSpan'));
+          dojo.byId('elevVal').innerHTML = "This browser doesn't support canvas. Visit <a target='_blank' href='http://www.caniuse.com/#search=canvas'>caniuse.com</a> for supported browsers";
+        }
+        
+        //add the reference layer for topo basemap
+        var referenceLayer = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer");      
+        map.addLayer(referenceLayer);
+
+
+        //resize the map when the browser resizes
+        dojo.connect(dijit.byId('mapCanvas'),'resize',map,function(){
+          map.resize();
+          getRasterData();
+        });
+            
+      }
+
+
+      function getRasterData() {
+        //adjust the number of rows and columns - always keeping the  number less than 100
+          var w = map.width;
+          var h = map.height;
+          var newh,neww;
+          var max = 100;
+          if (w > max || h > max){
+          if (w> max && h <= max){//too wide
+              var proportion=(max * 100)/w;
+               neww=max;
+               newh=Math.ceil((h*proportion)/100);
+          }
+          else if (w<=max && $h >max){//too high
+             var proportion=(max*100)/h;
+              newh=max;
+              neww=Math.ceil((w * proportion)/100);
+          }
+          else {//too high and too wide
+            if (w/max > h/max){//width is the issue
+               var proportion=(max *100)/w;
+                neww=max;
+                newh=Math.ceil((h*proportion)/100);
+            }
+            else {//height is the issue
+               var proportion=(max*100)/h;
+                newh=max;
+                neww=Math.ceil((w * proportion)/100);
+            }
+          }
+         }
+
+        cols = neww;
+        rows = newh;
+
+        var handle = esri.request({
+          url: "http://sampleserver4.arcgisonline.com/ArcGIS/rest/services/Elevation/ESRI_Elevation_World/MapServer/exts/ElevationsSOE/ElevationLayers/1/GetElevationData",
+          content: {
+            Extent: dojo.toJson(map.extent.toJson()),
+            Rows: rows,
+            Columns: cols,
+            f: "json"
+          },
+
+          callbackParamName: "callback",
+
+          load: function(response, io) {
+            esri.hide(dojo.byId("status"));
+            console.info("Data: ", response);
+            rasterLayer.setData(response);
+          },
+
+
+          error: function(error, io) {
+            esri.hide(dojo.byId("status"));
+            console.error("Unable to get data: ", error);
+          }
+        });
+      }
+      
+      function setElevation(){
+        var sliderVal =  dojo.number.round(dijit.byId('elevSlider').value) ;
+        var sliderValFeet = dojo.number.round(sliderVal * 3.2808399);
+        dojo.byId('elevVal').innerHTML = "Currently displaying elevations greater than " + sliderVal + " meters (" + sliderValFeet + " feet)";
+        rasterLayer.setElevation(dijit.byId('elevSlider').value);
+      
+      }
+     //doe the browser support canvas? 
+     function supports_canvas() {
+        return !!document.createElement('canvas').getContext;
+      }
+     
+    </script>
+  </head>
+  
+  <body class="claro">
+    <div data-dojo-type="dijit.layout.BorderContainer" data-dojo-props="design:'headline', gutters:false"
+    style="width: 100%; height: 100%; margin: 0;">
+     <div id="mapCanvas"  class='shadow' data-dojo-type="dijit.layout.ContentPane" data-dojo-props="region:'center'"
+        style="height:100%;">
+          <div id="status" style="position: absolute; right: 10px; top: 10px; z-index: 99;">
+            Loading...
+          </div>
+      </div>
+      <div  id="footer"  data-dojo-type="dijit.layout.ContentPane" data-dojo-props="region:'bottom'">
+        <span style='font-weight:600;' id='elevSpan'>Filter by Elevation </span>
+        <div id='elevVal'></div>
+        <div id="elevSlider"  data-dojo-type="dijit.form.HorizontalSlider" data-dojo-props="
+          minimum:-100, value:2000, maximum:8000, showButtons:'false',
+          intermediateChanges:'false', slideDuration:'0'">
+        </div>
+      </div>
+    </div>
+  </body>
+
+</html>
