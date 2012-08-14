@@ -4,4 +4,4 @@ This repo holds a series of javascript based mapping example applications that s
 
 Also the goal of this repository is share code in an efficient and collaborative way. Please feel free to fork and issue pull requests back with your examples. 
 
-You cna access the API here: http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.0compact
+You can access the API here: http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.0compact
