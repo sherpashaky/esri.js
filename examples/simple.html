@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!doctype html>
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
@@ -11,25 +11,23 @@
     <link href="assets/css/bootstrap.css" rel="stylesheet">
     <style>
       body {
-        padding: 20px; /* 60px to make the container go all the way to the bottom of the topbar */
         padding: 50px;
       }
     </style>
     <link href="assets/css/bootstrap-responsive.css" rel="stylesheet">
-    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=2.8compact"></script>
-    <script type="text/javascript" src="assets/js/jquery-1.7.1.min.js"></script>
-    <script type="text/javascript" src="assets/js/bootstrap.js"></script>
+    <script src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.1compact"></script>
+    <script src="assets/js/jquery-1.7.1.min.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
 
-    <script type="text/javascript">
+    <script>
       dojo.require("esri.map");
-      dojo.addOnLoad(init);
+      dojo.ready(init);
 
       function init() {
         var initExtent = new esri.geometry.Extent({"xmin":-122.46,"ymin":37.73,"xmax":-122.36,"ymax":37.77,"spatialReference":{"wkid":4326}});
         map = new esri.Map("map",{
           extent:esri.geometry.geographicToWebMercator(initExtent)
         });
-        //var map = new esri.Map("map");
         var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer");
         map.addLayer(basemap);
       }
@@ -38,7 +36,7 @@
   </head>
   <body>
     <h1>A Simple Map</h1>
-    <img src="assets/img/esri-logo-grey.gif" style="position:absolute; top:0px; right:50px;"/>
+    <img src="assets/img/esri-logo-grey.gif" style="position:absolute; top:25px; right:50px;"/>
     <div class="tabbable">
       <ul class="nav nav-tabs">
         <li class="active"><a href="#demo" data-toggle="tab">Demo</a></li>
@@ -46,27 +44,21 @@
       </ul>
       <div class="tab-content">
         <div class="tab-pane active" id="demo">
-          <div id="map" style="width:98%; height:600px; border:1px solid #000;"></div>
+          <div id="map" style="width:100%; height:600px;"></div>
         </div>
         <div class="tab-pane" id="code">
-          <pre> 
-      dojo.require("esri.map");
-      dojo.addOnLoad(init);
+<pre> dojo.require("esri.map");
+  dojo.ready(init);
 
-      function init() {
-        
-        var initExtent = new esri.geometry.Extent({"xmin":-122.46,"ymin":37.73,"xmax":-122.36,"ymax":37.77,"spatialReference":{"wkid":4326}});
-        
-        map = new esri.Map("map",{
-          extent:esri.geometry.geographicToWebMercator(initExtent)
-        });
-        
-        var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer");
-        
-        map.addLayer(basemap);
-      }
-
-    </pre>
+  function init() {
+    var initExtent = new esri.geometry.Extent({"xmin":-122.46,"ymin":37.73,"xmax":-122.36,"ymax":37.77,"spatialReference":{"wkid":4326}});
+    map = new esri.Map("map",{
+      extent:esri.geometry.geographicToWebMercator(initExtent)
+    });
+    var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer");
+    map.addLayer(basemap);
+  }      
+</pre>
         </div>
       </div>
     </div>
