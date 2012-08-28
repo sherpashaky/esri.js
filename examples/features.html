@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=7,IE=9" />
+    <!--The viewport meta tag is used to improve the presentation and behavior of the samples 
+      on iOS devices-->
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Feature Collection Map</title>
+
+    <link href="assets/css/bootstrap.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.1/js/esri/dijit/css/Popup.css"/>
+    <style>
+      body {
+        padding: 50px;
+      }
+    </style>
+    <link href="assets/css/bootstrap-responsive.css" rel="stylesheet">
+    <script src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.1compact"></script>
+    <script src="assets/js/jquery-1.7.1.min.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
+
+    <script>
+      dojo.require("dijit.layout.BorderContainer");
+      dojo.require("dijit.layout.ContentPane");
+      dojo.require("esri.map");
+      dojo.require("esri.layers.FeatureLayer");
+      dojo.require("esri.dijit.Popup");
+
+
+      var map;
+      var featureLayer;
+      var resizeTimer;
+
+
+      function init() {
+        //setup the map's initial extent 
+        var initExtent = new esri.geometry.Extent({"xmin":-16305479,"ymin":-635073,"xmax":5884495,"ymax":8307447,"spatialReference":{"wkid":102100}});
+
+        //create a popup to replace the map's info window
+        var popup = new esri.dijit.Popup(null, dojo.create("div"));
+        map = new esri.Map("map", {
+          extent: initExtent,
+          infoWindow: popup
+        });
+        
+        //hide the popup if its outside the map's extent
+        dojo.connect(map,"onMouseDrag",function(evt){
+          if(map.infoWindow.isShowing){
+            var loc = map.infoWindow.getSelectedFeature().geometry;
+            if(!map.extent.contains(loc)){
+              map.infoWindow.hide();
+            }
+          }
+        });
+
+        //Add the imagery layer to the map. View the ArcGIS Online site for services http://arcgisonline/home/search.html?t=content&f=typekeywords:service    
+        var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+        map.addLayer(basemap);
+
+        //create a feature collection for the flickr photos
+        var featureCollection = {
+          "layerDefinition": null,
+          "featureSet": {
+            "features": [],
+            "geometryType": "esriGeometryPoint"
+          }
+        };
+        featureCollection.layerDefinition = {
+          "geometryType": "esriGeometryPoint",
+          "objectIdField": "ObjectID",
+          "drawingInfo": {
+            "renderer": {
+              "type": "simple",
+              "symbol": {
+                "type": "esriPMS",
+                "url": "http://static.arcgis.com/images/Symbols/Shapes/BluePin1LargeB.png",
+                "contentType": "image/png",
+                "width": 15,
+                "height": 15
+              }
+            }
+          },
+          "fields": [{
+            "name": "name",
+            "alias": "Name",
+            "type": "esriFieldTypeString"
+          },{
+            "name": "state",
+            "alias": "State",
+            "type": "esriFieldTypeString"
+          },{
+            "name": "type",
+            "alias": "Type",
+            "type": "esriFieldTypeString"
+          }]
+        };
+
+        //define a popup template
+        var popupTemplate = new esri.dijit.PopupTemplate({
+          name: "{name}",
+          type:"{type}"
+        });
+
+        //create a feature layer based on the feature collection
+        featureLayer = new esri.layers.FeatureLayer(featureCollection, {
+          id: 'featureLayer',
+          infoTemplate: popupTemplate
+        });
+        
+        //associate the features with the popup on click
+        dojo.connect(featureLayer,"onClick",function(evt){
+           map.infoWindow.setFeatures([evt.graphic]);
+        });
+        
+        dojo.connect(map,"onLayersAddResult",function(results){requestPhotos();});
+        //add the feature layer that contains the flickr photos to the map
+        map.addLayers([featureLayer]);
+       
+        dojo.connect(map, 'onLoad', function(theMap) {
+          //resize the map when the browser resizes
+          dojo.connect(dijit.byId('map'), 'resize', map,map.resize);
+        });
+      }
+
+      function requestPhotos(){
+        var requestHandle = esri.request({
+          url: "data/ski_resorts.json",
+          callbackParamName: "jsoncallback",
+          load: requestSucceeded,
+          error: requestFailed
+        }, {
+          useProxy: false
+        });
+      }
+      
+      function requestSucceeded(response, io) {
+        //loop through the items and add to the feature layer
+        var features = [];
+        dojo.forEach(response.features, function(item) {
+          var attr = {};
+          attr["name"] = item.properties.name;
+          attr["type"] = item.properties.type ? item.properties.type : "both";
+
+          var geometry = esri.geometry.geographicToWebMercator(new esri.geometry.Point(item.properties.longitude, item.properties.latitude, map.spatialReference));
+
+          var graphic = new esri.Graphic(geometry);
+          graphic.setAttributes(attr);
+          features.push(graphic);
+        });
+
+        featureLayer.applyEdits(features, null, null);       
+      }
+
+      function requestFailed(error) {
+        console.log('failed');
+      }
+      dojo.ready(init);
+    </script>
+  </head>
+  <body>
+    <h1>A simple feature map</h1>
+    <img src="assets/img/esri-logo-grey.gif" style="position:absolute; top:25px; right:50px;"/>
+    <div class="tabbable">
+      <ul class="nav nav-tabs">
+        <li class="active"><a href="#demo" data-toggle="tab">Demo</a></li>
+        <li><a href="#code" data-toggle="tab">Code</a></li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane active" id="demo">
+          <div id="map" style="width:100%; height:600px;"></div>
+        </div>
+        <div class="tab-pane" id="code">
+<pre>
+</pre>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
